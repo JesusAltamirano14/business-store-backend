@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"   // Changed from "postgresql" to "mysql"
+  url      = env("DATABASE_URL")   // Make sure your DATABASE_URL points to a MySQL database
+}
+
+// Tenants table to store tenant-specific information
+model Business {
+  id          Int      @id @default(autoincrement())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users     User[]  // One-to-many relation with Worker
+  products    Product[] // One-to-many relation with Product
+  orders      Order[]   // One-to-many relation with Order
+}
+
+// Workers table
+model User {
+  id         Int      @id @default(autoincrement())
+  name       String?
+  role       Role
+  email      String   @unique
+  password   String
+  createdAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  businessId Int?
+
+  business  Business?   @relation(fields: [businessId], references: [id], onDelete: Cascade)  // Corrected relation with Tenant
+  orders    Order[]  // One-to-many relation with Order
+}
+
+// Products table
+model Product {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Float
+  stockQuantity Int
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  businessId    Int
+
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)  // Corrected relation with Tenant
+  orderItems    OrderItem[]  // One-to-many relation with OrderItem
+}
+
+// Orders table
+model Order {
+  id            Int      @id @default(autoincrement())
+  totalPrice    Float
+  status        String
+  paymentMethod String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  workerId      Int
+  businessId    Int
+
+  user       User   @relation(fields: [workerId], references: [id]) // Corrected relation with Worker
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade) // Corrected relation with Tenant
+  orderItems   OrderItem[]  // One-to-many relation with OrderItem
+  payments     Payment[]  // One-to-many relation with Payment
+}
+
+// Order Items table
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Float
+
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade) // Corrected relation with Order
+  product   Product @relation(fields: [productId], references: [id]) // Corrected relation with Product
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Payments table
+model Payment {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  method     String
+  amount     Float
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  order      Order    @relation(fields: [orderId], references: [id]) // Corrected relation with Order
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+}
